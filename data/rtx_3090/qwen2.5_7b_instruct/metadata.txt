@@ -1,0 +1,18 @@
+GPU model: NVIDIA GeForce RTX 3090 24GB
+Provider: RunPod
+CPU: AMD EPYC 7H12 64-Core Processor
+RAM: 1.0 TiB
+CUDA version: 13.0
+NVIDIA driver: 580.126.20
+Serving engine: vLLM
+vLLM version: 0.24.0
+Model: Qwen/Qwen2.5-7B-Instruct
+Precision: float16
+Max model length: 4096
+GPU memory utilization: 0.85
+Input length: 1024
+Output length: 128
+Num prompts: 256
+Concurrency levels: 1, 2, 4, 8, 16, 32
+Number of runs: 3
+Date: 2026-07-03

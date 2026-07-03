@@ -1,0 +1,22 @@
+Experiment: RTX 4090 cross-hardware vLLM calibration
+Provider: RunPod
+GPU model: NVIDIA GeForce RTX 4090
+CPU: AMD Ryzen 9 7950X 16-Core Processor
+RAM: 187Gi
+CUDA version: CUDA Version: 13.0
+NVIDIA driver: Driver Version: 580.159.04
+Serving engine: vLLM
+vLLM version: 0.24.0
+PyTorch version: 2.11.0+cu130
+Model: Qwen/Qwen2.5-7B-Instruct
+Precision: float16
+Max model length: 4096
+GPU memory utilization: 0.85
+Input length: 1024
+Output length: 128
+Num prompts per concurrency per run: 256
+Concurrency levels: 1, 2, 4, 8, 16, 32
+Number of runs: 3
+Total expected requests: 4608
+Date: Fri Jul  3 16:18:12 UTC 2026
+Notes: Successful calibration run on RTX 4090.
