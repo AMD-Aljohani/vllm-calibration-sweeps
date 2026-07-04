@@ -188,3 +188,9 @@ Qwen2.5-7B / RTX 4090 (concurrency fit):
 ==================================================
 Overall verification result: SUCCESS
 ```
+
+## Citation
+
+If you use this repository, please cite the archived release:
+
+> Aljohani, A. M. D. (2026). vLLM Calibration Sweeps for Sovereign Hybrid Local–Cloud LLM Routing (v1.0-mdpi-systems-submission). Zenodo. https://doi.org/10.5281/zenodo.21194313
