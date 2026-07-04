@@ -2,21 +2,49 @@
 
 An empirical cross-hardware benchmarking and calibration repository investigating LLM serving performance under varying concurrency loads. This project contains both the orchestration codebase and the validation dataset collected on **NVIDIA RTX 3090** (Ampere) and **NVIDIA RTX 4090** (Ada Lovelace) GPUs.
 
+The goal is to evaluate the consistency of the exponential service-degradation model under load across different models and hardware setups.
+
 ---
 
-## 📊 Overview & Core Model
+## 📊 Overview & Core Models
 
-The core objective is to validate the universality of the exponential service-degradation model under load. 
+This repository supports two distinct calibration formulations to model performance degradation:
 
-The decode service rate $\mu(C)$ (tokens/sec) degrades exponentially as a function of the concurrency level $C$:
+### 1. Primary Calibration Fit
+Models the service rate as a function of the internal vLLM GPU KV-cache usage percentage ($x$):
+
+$$\mu_{\text{emp}}(x) = 53.61 \cdot e^{-0.0344 x}$$
+
+where:
+* **$\mu_{\text{emp}}(x)$** is the decode rate (tokens/s), defined as $\frac{1000}{\text{TPOT}}$ (Time Per Output Token in ms).
+* **$x$** is the GPU KV-cache usage in percent.
+
+This formulation represents the primary calibration of the manuscript, yielding $R^2 = 0.996$ and $\text{RMSE} = 0.79 \text{ tok/s}$.
+
+### 2. Secondary Robustness Proxies (Cross-Model & Cross-Hardware)
+Model the service rate as a function of request concurrency ($C$):
 
 $$\mu(C) = \mu_{\max} \cdot e^{-\beta C}$$
 
 where:
-* **$\mu(C)$** is the decode service rate (tokens/sec), defined as $\frac{1000}{\text{TPOT}}$ (Time Per Output Token in ms).
-* **$\mu_{\max}$** is the theoretical maximum decode speed (single-user service rate).
-* **$\beta$** is the service degradation parameter under concurrency load.
-* **$C$** is the client concurrency level.
+* **$C$** is the request concurrency.
+* **$\mu_{\max}$** is the maximum decode rate (tokens/s).
+* **$\beta$** is the degradation parameter.
+
+> [!NOTE]
+> The GPU memory logs for the other models and hardware are outside the scope of this repository. The robustness fits use load proxies because the corresponding runs did not retain the same internal KV-cache telemetry.
+
+---
+
+## 📋 Relationship to the Manuscript
+
+The following table maps the manuscript's calibration and robustness goals to the repository's directories and scripts:
+
+| Manuscript Goal | Calibration Type | Repository Folder | Plot/Output File | Execution Script |
+| :--- | :--- | :--- | :--- | :--- |
+| **Primary Calibration** | Qwen2.5-7B / RTX 3090 using vLLM internal GPU KV-cache usage (%) | `data/rtx_3090/qwen2.5_7b_instruct/` | `outputs/qwen_3090_kv_cache_fit.png` | `scripts/fit_kv_cache.py` |
+| **Cross-model robustness** | Mistral-7B / RTX 3090 using estimated resident-token pressure proxy or concurrency proxy | `data/rtx_3090/mistral_7b_instruct_v0.3/` | `outputs/mistral_3090_fit.png` | `scripts/fit_concurrency.py` |
+| **Cross-hardware robustness** | Qwen2.5-7B / RTX 4090 using concurrency pressure proxy | `data/rtx_4090/qwen2.5_7b_instruct/` | `outputs/qwen_4090_concurrency_fit.png` | `scripts/fit_concurrency.py` |
 
 ---
 
@@ -26,49 +54,64 @@ The experiments were run with **Qwen2.5-7B-Instruct** (precision `float16`, max 
 
 ### Exponential Model Fits:
 
-| Hardware | Model | $\mu_{\max}$ (tok/s) | $\beta$ (degradation coeff) | $R^2$ | RMSE (tok/s) |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **RTX 3090 (Ampere)** | Qwen2.5-7B-Instruct | $53.04$ | $0.0403$ | $0.9911$ | $1.20$ |
-| **RTX 3090 (Ampere)** | Mistral-7B-Instruct | $54.33$ | $0.0514$ | $0.9772$ | $2.14$ |
-| **RTX 4090 (Ada Lovelace)** | Qwen2.5-7B-Instruct | $64.00$ | $0.0280$ | $0.9934$ | $1.03$ |
+| Hardware | Model | Load Variable | $\mu_{\max}$ (tok/s) | $\beta$ (degradation coeff) | $R^2$ | RMSE (tok/s) |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **RTX 3090 (Ampere)** | Qwen2.5-7B-Instruct | GPU KV-cache usage (%) | $53.61$ | $0.0344$ | $0.9960$ | $0.79$ |
+| **RTX 3090 (Ampere)** | Mistral-7B-Instruct-v0.3 | Concurrency | $54.33$ | $0.0514$ | $0.9772$ | $2.14$ |
+| **RTX 4090 (Ada Lovelace)** | Qwen2.5-7B-Instruct | Concurrency | $64.00$ | $0.0280$ | $0.9934$ | $1.03$ |
 
 ### Key Hardware Insights:
 
 1. **Single-User Throughput Gain ($\mu_{\max}$)**:
-   * Upgrading from RTX 3090 to RTX 4090 yields a **$20.7\%$ speedup** in raw maximum decode throughput (from $53.04 \text{ tok/s}$ to $64.00 \text{ tok/s}$).
+   * Upgrading from RTX 3090 to RTX 4090 yields a speedup in raw maximum decode throughput (from $53.04 \text{ tok/s}$ to $64.00 \text{ tok/s}$ concurrency-based, and $53.61 \text{ tok/s}$ cache-based).
 
 2. **Concurrency Resilience ($\beta$)**:
-   * The degradation parameter $\beta$ is **$30.5\%$ lower** on the RTX 4090 compared to the RTX 3090 (0.0280 vs 0.0403). This confirms that the newer Ada Lovelace architecture (specifically memory bandwidth and cache behavior under vLLM's PagedAttention scheduling) maintains a much flatter response curve under high request rates.
+   * The degradation parameter $\beta$ is lower on the RTX 4090 compared to the RTX 3090. This conforms to the flatter response curves expected from Ada Lovelace architectural improvements under controlled calibration sweeps (specifically memory bandwidth and cache behavior under vLLM's PagedAttention scheduling).
 
 ---
 
 ## 📂 Repository Structure
 
-```tree
+```
 vllm-calibration-sweeps/
 ├── LICENSE
 ├── README.md
 ├── requirements.txt
+├── data/
+│   ├── rtx_3090/
+│   │   ├── qwen2.5_7b_instruct/
+│   │   │   ├── raw/                  # Raw benchmark json files and server logs
+│   │   │   ├── processed/            # Aggregated performance data CSVs
+│   │   │   └── fit/                  # Generated fit parameters and plots
+│   │   └── mistral_7b_instruct_v0.3/
+│   │       ├── raw/
+│   │       ├── processed/
+│   │       └── fit/
+│   └── rtx_4090/
+│       └── qwen2.5_7b_instruct/
+│           ├── raw/
+│           ├── processed/
+│           └── fit/
 ├── scripts/
-│   ├── setup.sh                     # Environment configuration & library installs
-│   ├── start_server.sh              # Orchestrates local vLLM server launch
-│   ├── run_sweep.sh                 # Executes the concurrency benchmark sweeps
-│   ├── aggregate_results.py         # Parses single-run JSONs and CSV telemetry
-│   ├── aggregate_runs.py            # Combines and averages multiple runs
-│   └── fit_degradation_model.py     # Fits exponential model and generates plots
-└── data/
-    ├── rtx_3090/
-    │   ├── qwen2.5_7b_instruct/     # Raw runs, aggregate CSVs, fits, & plots for Qwen
-    │   └── mistral_7b_instruct/     # Raw runs, aggregate CSVs, fits, & plots for Mistral
-    └── rtx_4090/
-        └── qwen2.5_7b_instruct/     # Raw runs, aggregate CSVs, fits, & plots for Qwen
+│   ├── setup.sh                      # Environment configuration & library installs
+│   ├── start_server.sh               # Orchestrates local vLLM server launch
+│   ├── run_sweep.sh                  # Executes the concurrency benchmark sweeps
+│   ├── parse_qwen_3090.py            # Extracts Qwen 3090 KV cache usage
+│   ├── parse_mistral_3090.py         # Extracts Mistral 3090 decode rates
+│   ├── parse_qwen_4090.py            # Extracts Qwen 4090 decode rates
+│   ├── fit_kv_cache.py               # Fits the primary KV-cache model
+│   ├── fit_concurrency.py            # Fits concurrency-proxy models
+│   └── plot_all_fits.py              # Generates publication plots and consolidated summary
+├── solver/
+│   └── model_verification.py         # Checks model outputs against manuscript specs
+└── outputs/                          # Consolidated publication outputs and plots
 ```
 
 ---
 
 ## ⚙️ How to Reproduce & Run Sweeps
 
-All scripts are located in the `scripts/` folder. The environment should be configured on a CUDA-enabled instance (e.g., RunPod, Lambdalabs, local station).
+All scripts are located in the `scripts/` and `solver/` folders.
 
 ### 1. Environment Setup
 Run the setup script to install necessary Python and system dependencies:
@@ -76,43 +119,32 @@ Run the setup script to install necessary Python and system dependencies:
 bash scripts/setup.sh
 ```
 
-### 2. Start the vLLM Server
-Launch the model server in a detached screen or terminal tab:
-```bash
-# Starts Qwen2.5-7B-Instruct on port 8000
-bash scripts/start_server.sh Qwen/Qwen2.5-7B-Instruct 4096
-```
-
-### 3. Execute Calibration sweeps
-In another terminal, run the concurrency sweep:
-```bash
-# Sweeps through concurrency levels [1, 2, 4, 8, 16, 32]
-# Saves output results and nvidia-smi GPU logs locally
-bash scripts/run_sweep.sh qwen7b
-```
-
-### 4. Post-processing and Fitting
-Aggregate single runs, run statistics across repeated campaigns, and fit the exponential decay degradation model:
+### 2. Parse Raw Data and Generate Fits
+Run the following scripts to parse the raw data, execute the mathematical fits, output plots, and verify correctness against the manuscript:
 
 ```bash
-# 1. Aggregate results from multiple runs (e.g. run_1, run_2, run_3)
-python3 scripts/aggregate_runs.py \
-    --runs run_1 run_2 run_3 \
-    --out-summary-runs calibration_summary_runs.csv \
-    --out-summary-means calibration_summary.csv
+# 1. Parse raw data into processed CSV tables
+python3 scripts/parse_qwen_3090.py
+python3 scripts/parse_mistral_3090.py
+python3 scripts/parse_qwen_4090.py
 
-# 2. Fit the exponential decay model and plot results
-python3 scripts/fit_degradation_model.py \
-    --csv calibration_summary.csv \
-    --out-prefix fit_output
+# 2. Fit primary KV-cache model
+python3 scripts/fit_kv_cache.py
+
+# 3. Fit secondary robustness models
+python3 scripts/fit_concurrency.py \
+    --input data/rtx_3090/mistral_7b_instruct_v0.3/processed/mistral_3run_summary.csv \
+    --out data/rtx_3090/mistral_7b_instruct_v0.3/fit/mistral_concurrency_fit_summary.txt \
+    --label "Mistral-7B / RTX 3090 concurrency robustness fit"
+
+python3 scripts/fit_concurrency.py \
+    --input data/rtx_4090/qwen2.5_7b_instruct/processed/qwen_4090_summary.csv \
+    --out data/rtx_4090/qwen2.5_7b_instruct/fit/qwen_4090_concurrency_fit_summary.txt \
+    --label "Qwen2.5-7B / RTX 4090 concurrency robustness fit"
+
+# 4. Generate consolidated publication plots and summary table
+python3 scripts/plot_all_fits.py
+
+# 5. Run the verification script to check constraints
+python3 solver/model_verification.py
 ```
-
----
-
-## 📈 Parameter & Plot Outputs
-
-Inside the respective `data/` directories, you will find:
-* `metadata.txt`: Full hardware & engine configurations.
-* `calibration_summary.csv`: Averaged measurements per concurrency level.
-* `fit_output_plot.png`: Fitted exponential curve overlaying measured data.
-* `fit_output_parameters.txt`: Calculated regression coefficients ($\mu_{\max}, \beta$) and confidence intervals.

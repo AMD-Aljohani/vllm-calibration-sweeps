@@ -1,0 +1,5 @@
+Label: Mistral-7B / RTX 3090 concurrency-proxy robustness fit
+mu_max=54.3270 tok/s
+beta=0.051409 per concurrency point
+R2=0.977178
+RMSE=2.143538 tok/s

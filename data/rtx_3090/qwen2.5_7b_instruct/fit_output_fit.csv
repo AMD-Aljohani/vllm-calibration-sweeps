@@ -1,3 +1,0 @@
-model,mu_max,mu_max_se,beta,beta_se,r_squared,rmse,n
-decode_rate_vs_concurrency,53.043919,1.038911,0.04034952,0.00256088,0.991088,1.195621,6
-decode_rate_vs_mem_pressure,56.39172,0.00436,0.48684817,0.20312456,0.0,12.664994,6

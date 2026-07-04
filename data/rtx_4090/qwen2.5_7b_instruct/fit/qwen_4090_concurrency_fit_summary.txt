@@ -1,0 +1,5 @@
+Label: Qwen2.5-7B / RTX 4090 concurrency-proxy robustness fit
+mu_max=63.9993 tok/s
+beta=0.028015 per concurrency point
+R2=0.993391
+RMSE=1.024056 tok/s

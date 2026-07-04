@@ -1,0 +1,7 @@
+Primary manuscript calibration: Qwen2.5-7B / RTX 3090
+Load variable: vLLM GPU KV-cache usage (%)
+Service variable: per-stream decode rate = 1000 / TPOT(ms)
+mu_max=53.6163 tok/s
+beta=0.034410 per KV-cache percentage point
+R2=0.996001
+RMSE=0.790135 tok/s

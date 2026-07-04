@@ -1,0 +1,4 @@
+model_type,hardware,load_variable,mu_max,beta,R2,RMSE
+Qwen2.5-7B-Instruct,RTX 3090,GPU KV-cache usage (%),53.6163,0.034410,0.996001,0.790135
+Mistral-7B-Instruct-v0.3,RTX 3090,Concurrency,54.3269,0.051409,0.977178,2.143538
+Qwen2.5-7B-Instruct,RTX 4090,Concurrency,63.9993,0.028015,0.993391,1.024056
